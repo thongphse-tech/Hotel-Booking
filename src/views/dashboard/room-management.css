@@ -1,0 +1,138 @@
+.room-management-header {
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.room-management-header h2 {
+  color: #172b21;
+}
+
+.room-management-header p {
+  margin: 8px 0 0;
+  color: #68736b;
+  font-size: 13px;
+}
+
+.room-management-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.room-management .section-header .tabs button {
+  min-height: 38px;
+}
+
+.room-management .primary-btn {
+  white-space: nowrap;
+}
+
+.room-management-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #e8ebe5;
+  border-radius: 6px;
+}
+
+.room-management-table {
+  min-width: 620px;
+}
+
+.room-management-table th {
+  white-space: nowrap;
+}
+
+.room-management-table td {
+  vertical-align: middle;
+}
+
+.room-management-table .room-number-cell {
+  color: #244a37;
+  font-weight: 650;
+}
+
+.room-management-table select {
+  min-width: 140px;
+  min-height: 36px;
+  background: #fff;
+  color: #34483b;
+}
+
+.room-management-table select:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.room-management .room-action-cell {
+  white-space: nowrap;
+}
+
+.room-management .room-action-cell .room-delete-button {
+  color: #9c4545;
+}
+
+.room-management .room-empty-cell {
+  padding: 28px;
+  color: #68736b;
+  text-align: center;
+}
+
+.room-management-notice {
+  margin: 0 0 16px;
+  padding: 11px 14px;
+  border: 1px solid #edd1c9;
+  border-radius: 5px;
+  background: #fff7f4;
+  color: #8b3a32;
+  font-size: 13px;
+}
+
+.room-management-modal {
+  max-width: 520px;
+}
+
+.room-management-modal label {
+  color: #34483b;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.room-management-modal .field-error {
+  border-color: #b94a48;
+  box-shadow: 0 0 0 1px #b94a48;
+}
+
+.room-management-modal .room-field-error {
+  display: block;
+  margin-top: 5px;
+  color: #a13d39;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+@media (max-width: 768px) {
+  .room-management-header {
+    flex-direction: column;
+  }
+
+  .room-management-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 480px) {
+  .room-management-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .room-management-actions .tabs {
+    width: 100%;
+  }
+
+  .room-management-actions .tabs button {
+    flex: 1;
+  }
+}

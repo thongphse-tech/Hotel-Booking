@@ -1,0 +1,14 @@
+CREATE TABLE IF NOT EXISTS PasswordResetOtp (
+    AccountID INTEGER PRIMARY KEY REFERENCES UserAccount(AccountID) ON DELETE CASCADE,
+    Email VARCHAR(100) NOT NULL,
+    OtpHash CHAR(64) NOT NULL,
+    ExpiresAt TIMESTAMPTZ NOT NULL,
+    Attempts INTEGER NOT NULL DEFAULT 0 CHECK (Attempts >= 0),
+    LastSentAt TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    VerifiedAt TIMESTAMPTZ,
+    ResetTokenID UUID,
+    CreatedAt TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_password_reset_otp_expires
+    ON PasswordResetOtp (ExpiresAt);

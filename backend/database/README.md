@@ -1,89 +1,27 @@
-# Database Setup Instructions
+# Database Setup
 
-## Prerequisites
-- PostgreSQL installed and running
-- psql command-line tool available
+PostgreSQL must be installed and running, with `psql` available.
 
-## Steps to create the database
+On Windows with PostgreSQL 18, run `setup.bat` from this folder. It prompts for the `postgres` password, creates `hotel_booking`, and creates the tables without inserting sample data. The script stops if the database already exists. For an existing database, run unapplied migrations in order, including `migrations/002_add_room_floor.sql` and `migrations/003_add_booking_guest_details.sql`.
 
-### 1. Create the database
-```bash
-# Connect to PostgreSQL
-psql -U postgres
+To apply the room-floor migration to an existing database, run `psql -d hotel_booking -f migrations/002_add_room_floor.sql` from this folder.
 
-# Create the database
-CREATE DATABASE hotel_booking;
+Apply `migrations/003_add_booking_guest_details.sql` to persist guest contact details and special requests for new bookings. Apply `migrations/005_add_discount_type.sql` to support percentage and fixed-amount discount codes, `migrations/006_add_review_title.sql` for review titles, and `migrations/007_add_service_operating_hours.sql` for service operating hours.
 
-# Exit psql
-\q
+Apply `migrations/008_add_pending_customer_registration.sql` to an existing database to enable email OTP registration. This migration adds only the temporary pending-registration table; it does not alter existing customer or account records.
+
+Apply `migrations/009_add_password_reset_otp.sql` to enable password reset by email OTP. This migration adds a separate OTP table and does not alter existing account or customer records.
+
+Apply `migrations/010_add_discount_room_type.sql` to associate discount codes with a room type. Existing codes remain available for all room types; admins choose a room type or all room types when creating a code. During booking, customers see currently valid codes for the selected room type, and the API checks the same room-type rule when applying and creating the booking.
+
+The database starts empty. Register a customer through the web UI. To grant that account administrator access, connect to `hotel_booking` with `psql` and run:
+
+```sql
+UPDATE UserAccount SET Role = 'admin' WHERE Username = 'your-email@example.com';
 ```
 
-### 2. Run the schema script
-```bash
-# Option 1: Using psql command
-psql -U postgres -d hotel_booking -f schema.sql
+Sign out and sign in again to refresh the role in the API session.
 
-# Option 2: Connect to database and run
-psql -U postgres -d hotel_booking
-\i schema.sql
-```
+The schema creates these tables: `UserAccount`, `Customer`, `RoomType`, `Room`, `DiscountCode`, `HotelService`, `Booking`, `Payment`, `RefundRequest`, `Review`, and `ServiceBooking`.
 
-### 3. Verify the database
-```bash
-psql -U postgres -d hotel_booking
-
-# List all tables
-\dt
-
-# Check table structure
-\d UserAccount
-\d Customer
-\d RoomType
-\d Room
-\d Booking
-\d Payment
-\d Review
-\d DiscountCode
-\d HotelService
-\d ServiceBooking
-
-# View sample data
-SELECT * FROM UserAccount;
-SELECT * FROM RoomType;
-SELECT * FROM Room;
-```
-
-## Database Schema Overview
-
-### Tables:
-1. **UserAccount** - User authentication and role management
-2. **Customer** - Customer profile information
-3. **RoomType** - Room types with pricing and amenities
-4. **Room** - Individual rooms with status
-5. **DiscountCode** - Discount/coupon codes
-6. **HotelService** - Additional hotel services
-7. **Booking** - Room bookings
-8. **Payment** - Payment transactions
-9. **Review** - Customer reviews
-10. **ServiceBooking** - Booked services for a booking
-
-### Key Features:
-- Foreign key constraints with appropriate cascade rules
-- Check constraints for data validation
-- Indexes for query optimization
-- Auto-updating timestamps for Booking table
-- Sample data for testing
-
-## Sample Data Included:
-- 2 user accounts (admin, staff)
-- 2 customer profiles
-- 4 room types
-- 6 rooms
-- 3 discount codes
-- 4 hotel services
-
-## Notes:
-- The script drops existing tables before creating new ones (use with caution in production)
-- Password hashes are placeholders - use bcrypt in your application
-- Adjust connection parameters (-U postgres) based on your PostgreSQL setup
-- Remove sample data INSERT statements for production deployment
+Role responsibilities are enforced in backend routes: customers operate on their own bookings; staff handle daily booking and stay operations; admins manage rooms, room types, service catalog, discounts, account activation, and refund completion. There is no implemented general Staff/Admin account-management API or configurable policy-management API in the current project.

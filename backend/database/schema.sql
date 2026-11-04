@@ -4,6 +4,7 @@
 -- Drop tables if they exist (clean slate)
 DROP TABLE IF EXISTS ServiceBooking;
 DROP TABLE IF EXISTS Review;
+DROP TABLE IF EXISTS RefundRequest;
 DROP TABLE IF EXISTS Payment;
 DROP TABLE IF EXISTS Booking;
 DROP TABLE IF EXISTS DiscountCode;
@@ -11,6 +12,8 @@ DROP TABLE IF EXISTS HotelService;
 DROP TABLE IF EXISTS Room;
 DROP TABLE IF EXISTS RoomType;
 DROP TABLE IF EXISTS Customer;
+DROP TABLE IF EXISTS PasswordResetOtp;
+DROP TABLE IF EXISTS PendingCustomerRegistration;
 DROP TABLE IF EXISTS UserAccount;
 
 -- Create UserAccount table
@@ -20,8 +23,39 @@ CREATE TABLE UserAccount (
     PasswordHash VARCHAR(255) NOT NULL,
     Role VARCHAR(20) NOT NULL CHECK (Role IN ('admin', 'staff', 'customer')),
     IsActive BOOLEAN DEFAULT true,
+    FailedLoginAttempts INTEGER NOT NULL DEFAULT 0,
+    LockedUntil TIMESTAMP,
+    TokenVersion INTEGER NOT NULL DEFAULT 0,
     CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE PendingCustomerRegistration (
+    Email VARCHAR(100) PRIMARY KEY,
+    FullName VARCHAR(100) NOT NULL,
+    Phone VARCHAR(20),
+    PasswordHash VARCHAR(255) NOT NULL,
+    OtpHash CHAR(64) NOT NULL,
+    ExpiresAt TIMESTAMPTZ NOT NULL,
+    Attempts INTEGER NOT NULL DEFAULT 0 CHECK (Attempts >= 0),
+    LastSentAt TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CreatedAt TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_pending_customer_registration_expires
+    ON PendingCustomerRegistration (ExpiresAt);
+
+CREATE TABLE PasswordResetOtp (
+    AccountID INTEGER PRIMARY KEY,
+    Email VARCHAR(100) NOT NULL,
+    OtpHash CHAR(64) NOT NULL,
+    ExpiresAt TIMESTAMPTZ NOT NULL,
+    Attempts INTEGER NOT NULL DEFAULT 0 CHECK (Attempts >= 0),
+    LastSentAt TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    VerifiedAt TIMESTAMPTZ,
+    ResetTokenID UUID,
+    CreatedAt TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (AccountID) REFERENCES UserAccount(AccountID) ON DELETE CASCADE
+);
+CREATE INDEX idx_password_reset_otp_expires ON PasswordResetOtp (ExpiresAt);
 
 -- Create Customer table
 CREATE TABLE Customer (
@@ -30,6 +64,7 @@ CREATE TABLE Customer (
     FullName VARCHAR(100) NOT NULL,
     Email VARCHAR(100) UNIQUE NOT NULL,
     Phone VARCHAR(20),
+    Address VARCHAR(255),
     CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (AccountID) REFERENCES UserAccount(AccountID) ON DELETE CASCADE
 );
@@ -51,6 +86,7 @@ CREATE TABLE Room (
     RoomID SERIAL PRIMARY KEY,
     RoomTypeID INTEGER NOT NULL,
     RoomNumber VARCHAR(20) UNIQUE NOT NULL,
+    Floor INTEGER NOT NULL DEFAULT 1 CHECK (Floor >= 0),
     Status VARCHAR(20) NOT NULL CHECK (Status IN ('available', 'occupied', 'maintenance', 'cleaning')),
     IsDeleted BOOLEAN DEFAULT false,
     CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -61,7 +97,9 @@ CREATE TABLE Room (
 CREATE TABLE DiscountCode (
     CodeID SERIAL PRIMARY KEY,
     CodeString VARCHAR(50) UNIQUE NOT NULL,
-    DiscountValue DECIMAL(5, 2) NOT NULL CHECK (DiscountValue >= 0 AND DiscountValue <= 100),
+    RoomTypeID INTEGER REFERENCES RoomType(RoomTypeID) ON DELETE RESTRICT,
+    DiscountType VARCHAR(20) NOT NULL DEFAULT 'percentage' CHECK (DiscountType IN ('percentage', 'fixed')),
+    DiscountValue DECIMAL(12, 2) NOT NULL CHECK (DiscountValue >= 0),
     ValidFrom DATE NOT NULL,
     ValidTo DATE NOT NULL,
     UsageLimit INTEGER CHECK (UsageLimit > 0),
@@ -78,9 +116,14 @@ CREATE TABLE HotelService (
     Description TEXT,
     Price DECIMAL(10, 2) NOT NULL CHECK (Price >= 0),
     Conditions TEXT,
+    OperatingHours VARCHAR(120),
+    Category VARCHAR(50) NOT NULL DEFAULT 'General',
+    Capacity INTEGER CHECK (Capacity IS NULL OR Capacity > 0),
     IsDeleted BOOLEAN DEFAULT false,
     CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE UNIQUE INDEX unique_active_service_name_category ON HotelService (LOWER(Name), LOWER(Category)) WHERE IsDeleted = false;
 
 -- Create Booking table
 CREATE TABLE Booking (
@@ -90,8 +133,12 @@ CREATE TABLE Booking (
     CodeID INTEGER,
     CheckinDate DATE NOT NULL,
     CheckOutDate DATE NOT NULL,
+    GuestCount INTEGER NOT NULL DEFAULT 1 CHECK (GuestCount > 0),
     Status VARCHAR(20) NOT NULL CHECK (Status IN ('pending', 'confirmed', 'checked_in', 'checked_out', 'cancelled')),
     TotalAmount DECIMAL(10, 2) NOT NULL CHECK (TotalAmount >= 0),
+    GuestName VARCHAR(100),
+    ContactPhone VARCHAR(20),
+    SpecialRequests TEXT,
     CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (CustomerID) REFERENCES Customer(CustomerID) ON DELETE RESTRICT,
@@ -118,7 +165,9 @@ CREATE TABLE Review (
     BookingID INTEGER NOT NULL,
     CustomerID INTEGER NOT NULL,
     Rating INTEGER NOT NULL CHECK (Rating >= 1 AND Rating <= 5),
+    Title VARCHAR(120),
     Comment TEXT,
+    IsApproved BOOLEAN NOT NULL DEFAULT false,
     CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (BookingID) REFERENCES Booking(BookingID) ON DELETE CASCADE,
     FOREIGN KEY (CustomerID) REFERENCES Customer(CustomerID) ON DELETE CASCADE,
@@ -133,6 +182,10 @@ CREATE TABLE ServiceBooking (
     Quantity INTEGER NOT NULL CHECK (Quantity > 0),
     TotalPrice DECIMAL(10, 2) NOT NULL CHECK (TotalPrice >= 0),
     BookingDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ServiceDate DATE,
+    TimeSlot VARCHAR(50),
+    SpecialNotes TEXT,
+    Status VARCHAR(20) NOT NULL DEFAULT 'confirmed' CHECK (Status IN ('confirmed', 'cancelled', 'completed')),
     FOREIGN KEY (BookingID) REFERENCES Booking(BookingID) ON DELETE CASCADE,
     FOREIGN KEY (ServiceID) REFERENCES HotelService(ServiceID) ON DELETE RESTRICT
 );
@@ -143,6 +196,23 @@ CREATE INDEX idx_booking_room ON Booking(RoomID);
 CREATE INDEX idx_booking_status ON Booking(Status);
 CREATE INDEX idx_booking_dates ON Booking(CheckinDate, CheckOutDate);
 CREATE INDEX idx_payment_booking ON Payment(BookingID);
+
+-- Create RefundRequest table for manually reviewed refunds after cancellation
+CREATE TABLE RefundRequest (
+    RefundRequestID SERIAL PRIMARY KEY,
+    BookingID INTEGER NOT NULL UNIQUE,
+    CustomerID INTEGER NOT NULL,
+    Amount DECIMAL(10, 2) NOT NULL CHECK (Amount > 0),
+    Status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (Status IN ('pending', 'refunded')),
+    CreatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ProcessedAt TIMESTAMP,
+    ProcessedBy INTEGER,
+    FOREIGN KEY (BookingID) REFERENCES Booking(BookingID) ON DELETE RESTRICT,
+    FOREIGN KEY (CustomerID) REFERENCES Customer(CustomerID) ON DELETE RESTRICT,
+    FOREIGN KEY (ProcessedBy) REFERENCES UserAccount(AccountID) ON DELETE RESTRICT
+);
+CREATE INDEX idx_refund_request_status_created ON RefundRequest(Status, CreatedAt);
+
 CREATE INDEX idx_review_customer ON Review(CustomerID);
 CREATE INDEX idx_review_booking ON Review(BookingID);
 CREATE INDEX idx_servicebooking_booking ON ServiceBooking(BookingID);
@@ -165,37 +235,3 @@ CREATE TRIGGER update_booking_updated_at
     BEFORE UPDATE ON Booking
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
-
--- Sample data (optional - remove in production)
-INSERT INTO UserAccount (Username, PasswordHash, Role, IsActive) VALUES
-('admin', '$2b$10$placeholder_hash_for_admin', 'admin', true),
-('staff1', '$2b$10$placeholder_hash_for_staff', 'staff', true);
-
-INSERT INTO Customer (AccountID, FullName, Email, Phone) VALUES
-(1, 'Admin User', 'admin@hotelease.com', '0123456789'),
-(2, 'Staff User', 'staff@hotelease.com', '0987654321');
-
-INSERT INTO RoomType (Name, Price, Capacity, Amenities, Description) VALUES
-('Standard Room', 100.00, 2, 'WiFi, TV, AC', 'Comfortable standard room'),
-('Deluxe Room', 150.00, 2, 'WiFi, TV, AC, Mini-bar, Balcony', 'Spacious deluxe room with balcony'),
-('Suite', 250.00, 4, 'WiFi, TV, AC, Mini-bar, Balcony, Living Room, Kitchen', 'Luxury suite with separate living area'),
-('Family Room', 200.00, 4, 'WiFi, TV, AC, Mini-bar, 2 Bedrooms', 'Perfect for families');
-
-INSERT INTO Room (RoomTypeID, RoomNumber, Status) VALUES
-(1, '101', 'available'),
-(1, '102', 'available'),
-(2, '201', 'available'),
-(2, '202', 'available'),
-(3, '301', 'available'),
-(4, '401', 'available');
-
-INSERT INTO DiscountCode (CodeString, DiscountValue, ValidFrom, ValidTo, UsageLimit) VALUES
-('WELCOME10', 10.00, '2024-01-01', '2024-12-31', 100),
-('SUMMER20', 20.00, '2024-06-01', '2024-08-31', 50),
-('LOYALTY15', 15.00, '2024-01-01', '2024-12-31', 200);
-
-INSERT INTO HotelService (Name, Description, Price, Conditions) VALUES
-('Breakfast', 'Continental breakfast buffet', 15.00, '7:00 AM - 10:00 AM'),
-('Airport Transfer', 'Pick-up and drop-off service', 30.00, '24 hours advance booking required'),
-('Spa Treatment', 'Full body massage', 80.00, 'By appointment'),
-('Laundry Service', 'Daily laundry service', 20.00, 'Same-day service for requests before 10 AM');

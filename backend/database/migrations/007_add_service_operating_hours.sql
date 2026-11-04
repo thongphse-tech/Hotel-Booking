@@ -1,0 +1,2 @@
+ALTER TABLE HotelService
+ADD COLUMN IF NOT EXISTS OperatingHours VARCHAR(120);
