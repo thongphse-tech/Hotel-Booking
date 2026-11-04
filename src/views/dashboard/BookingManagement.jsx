@@ -3,6 +3,8 @@ import { bookingController } from "../../controllers/bookingController.js";
 import { roomController } from "../../controllers/roomController.js";
 import { translateCatalog, useLanguage } from "../../i18n.js";
 import { useConfirmation } from "../useConfirmation.jsx";
+import { useNotification } from "../useNotification.jsx";
+import { Notification } from "../Notification.jsx";
 import "./booking-management.css";
 
 const money = (value) => new Intl.NumberFormat("vi-VN", {
@@ -45,7 +47,7 @@ export function BookingManagement({ onRefresh, user }) {
   const [appliedFilters, setAppliedFilters] = useState({});
   const [searchText, setSearchText] = useState("");
   const [formData, setFormData] = useState({ roomId: "", checkIn: "", checkOut: "" });
-  const [notice, setNotice] = useState("");
+  const { notification, showNotification, hideNotification } = useNotification();
   const visibleBookings = useMemo(() => {
     const term = searchText.trim().toLocaleLowerCase();
     if (!term) return bookings;
@@ -64,11 +66,10 @@ export function BookingManagement({ onRefresh, user }) {
 
   async function loadBookings(nextFilters = appliedFilters) {
     setLoading(true);
-    setNotice("");
     try {
       setBookings(await bookingController.list(nextFilters));
     } catch (error) {
-      setNotice(error.message);
+      showNotification(error.message, "error");
     } finally {
       setLoading(false);
     }
@@ -76,12 +77,11 @@ export function BookingManagement({ onRefresh, user }) {
 
   async function loadRefundRequests() {
     setLoading(true);
-    setNotice("");
     try {
       setRefundRequests(await bookingController.refundRequests() || []);
       setShowRefundModal(true);
     } catch (error) {
-      setNotice(`${vi ? "Không thể tải yêu cầu hoàn tiền" : "Unable to load refund requests"}: ${error.message}`);
+      showNotification(`${vi ? "Không thể tải yêu cầu hoàn tiền" : "Unable to load refund requests"}: ${error.message}`, "error");
     } finally {
       setLoading(false);
     }
@@ -100,13 +100,13 @@ export function BookingManagement({ onRefresh, user }) {
     });
     if (!confirmed) return;
     setProcessingRefundId(refund.refundrequestid);
-    setNotice("");
     try {
       await bookingController.completeRefund(refund.refundrequestid);
       setRefundRequests(await bookingController.refundRequests() || []);
       await loadBookings();
+      showNotification(vi ? "Đã hoàn tất hoàn tiền." : "Refund completed successfully.", "success");
     } catch (error) {
-      setNotice(`${vi ? "Không thể hoàn tất hoàn tiền" : "Unable to complete refund"}: ${error.message}`);
+      showNotification(`${vi ? "Không thể hoàn tất hoàn tiền" : "Unable to complete refund"}: ${error.message}`, "error");
     } finally {
       setProcessingRefundId(null);
     }
@@ -115,7 +115,7 @@ export function BookingManagement({ onRefresh, user }) {
   async function applyFilters(event) {
     event.preventDefault();
     if (filters.from && filters.to && filters.to < filters.from) {
-      setNotice(vi ? "Ngày kết thúc phải bằng hoặc sau ngày bắt đầu." : "End date must be on or after start date.");
+      showNotification(vi ? "Ngày kết thúc phải bằng hoặc sau ngày bắt đầu." : "End date must be on or after start date.", "error");
       return;
     }
     const next = Object.fromEntries(Object.entries(filters).filter(([, value]) => value));
@@ -125,12 +125,11 @@ export function BookingManagement({ onRefresh, user }) {
 
   async function loadPaymentHistory(nextFilters = paymentFilters) {
     setLoading(true);
-    setNotice("");
     try {
       setPaymentHistory(await bookingController.paymentHistory(nextFilters) || []);
       setShowPaymentModal(true);
     } catch (error) {
-      setNotice(`${vi ? "Không thể tải lịch sử thanh toán" : "Unable to load payment history"}: ${error.message}`);
+      showNotification(`${vi ? "Không thể tải lịch sử thanh toán" : "Unable to load payment history"}: ${error.message}`, "error");
     } finally {
       setLoading(false);
     }
@@ -145,14 +144,13 @@ export function BookingManagement({ onRefresh, user }) {
     setShowModal(true);
     setSelectedBooking(null);
     setSelectedInvoice(null);
-    setNotice("");
     try {
       const details = await bookingController.managementDetails(booking.id);
       setSelectedBooking(details);
       try {
         setSelectedInvoice(await bookingController.stayInvoice(booking.id));
       } catch (error) {
-        setNotice(`${vi ? "Không thể tải hóa đơn lưu trú" : "Unable to load stay invoice"}: ${error.message}`);
+        showNotification(`${vi ? "Không thể tải hóa đơn lưu trú" : "Unable to load stay invoice"}: ${error.message}`, "error");
       }
       setFormData({
         roomId: String(details.roomId),
@@ -161,7 +159,7 @@ export function BookingManagement({ onRefresh, user }) {
       });
       if (isStaff) setRoomOptions(await roomController.list());
     } catch (error) {
-      setNotice(error.message);
+      showNotification(error.message, "error");
     }
   }
 
@@ -169,7 +167,6 @@ export function BookingManagement({ onRefresh, user }) {
     event.preventDefault();
     if (!selectedBooking || !isStaff || isTerminal(selectedBooking.status)) return;
     setLoading(true);
-    setNotice("");
     try {
       await bookingController.updateManagement(selectedBooking.id, {
         roomId: Number(formData.roomId),
@@ -178,9 +175,10 @@ export function BookingManagement({ onRefresh, user }) {
       });
       setShowModal(false);
       await loadBookings();
+      showNotification(vi ? "Đã cập nhật đặt phòng." : "Booking updated successfully.", "success");
       onRefresh?.();
     } catch (error) {
-      setNotice(error.message);
+      showNotification(error.message, "error");
     } finally {
       setLoading(false);
     }
@@ -188,13 +186,13 @@ export function BookingManagement({ onRefresh, user }) {
 
   async function handleConfirm(id) {
     setConfirmingId(id);
-    setNotice("");
     try {
       await bookingController.confirmManagement(id);
       await loadBookings();
+      showNotification(vi ? "Đã xác nhận đặt phòng." : "Booking confirmed successfully.", "success");
       onRefresh?.();
     } catch (error) {
-      setNotice(error.message);
+      showNotification(error.message, "error");
     } finally {
       setConfirmingId(null);
     }
@@ -215,14 +213,13 @@ export function BookingManagement({ onRefresh, user }) {
     });
     if (!confirmed) return;
     setLoading(true);
-    setNotice("");
     try {
       const result = await bookingController.cancel(id);
       await loadBookings();
-      setNotice(result.message || "Booking cancelled.");
+      showNotification(result.message || (vi ? "Đã hủy đặt phòng." : "Booking cancelled."), "success");
       onRefresh?.();
     } catch (error) {
-      setNotice(error.message);
+      showNotification(error.message, "error");
     } finally {
       setLoading(false);
     }
@@ -230,7 +227,6 @@ export function BookingManagement({ onRefresh, user }) {
 
   async function handleTransition(id, action) {
     setLoading(true);
-    setNotice("");
     try {
       await bookingController[action](id);
       await loadBookings();
@@ -243,9 +239,14 @@ export function BookingManagement({ onRefresh, user }) {
         setSelectedInvoice(invoice);
         setShowModal(true);
       }
+      const actionLabels = {
+        checkIn: vi ? "Nhận phòng" : "Check-in",
+        checkOut: vi ? "Trả phòng" : "Check-out"
+      };
+      showNotification(actionLabels[action] ? `${vi ? "Đã" : ""} ${actionLabels[action]} ${vi ? "thành công." : "successful."}` : "", "success");
       onRefresh?.();
     } catch (error) {
-      setNotice(error.message);
+      showNotification(error.message, "error");
     } finally {
       setLoading(false);
     }
@@ -254,7 +255,6 @@ export function BookingManagement({ onRefresh, user }) {
   async function handleCollectStayPayment() {
     if (!isStaff || !selectedBooking || !selectedInvoice || selectedInvoice.balance <= 0) return;
     setLoading(true);
-    setNotice("");
     try {
       await bookingController.collectStayPayment(selectedBooking.id, paymentMethod);
       const [details, invoice] = await Promise.all([
@@ -264,9 +264,10 @@ export function BookingManagement({ onRefresh, user }) {
       setSelectedBooking(details);
       setSelectedInvoice(invoice);
       await loadBookings();
+      showNotification(vi ? "Đã thu tiền thành công." : "Payment collected successfully.", "success");
       onRefresh?.();
     } catch (error) {
-      setNotice(error.message);
+      showNotification(error.message, "error");
     } finally {
       setLoading(false);
     }
@@ -276,13 +277,11 @@ export function BookingManagement({ onRefresh, user }) {
     setShowModal(false);
     setSelectedBooking(null);
     setSelectedInvoice(null);
-    setNotice("");
   }
 
   async function refreshDetails() {
     if (!selectedBooking) return;
     setLoading(true);
-    setNotice("");
     try {
       const [details, invoice] = await Promise.all([
         bookingController.managementDetails(selectedBooking.id),
@@ -291,8 +290,9 @@ export function BookingManagement({ onRefresh, user }) {
       setSelectedBooking(details);
       setSelectedInvoice(invoice);
       await loadBookings();
+      showNotification(vi ? "Đã cập nhật trạng thái thanh toán." : "Payment status refreshed successfully.", "success");
     } catch (error) {
-      setNotice(`${vi ? "Không thể cập nhật trạng thái thanh toán" : "Unable to refresh payment status"}: ${error.message}`);
+      showNotification(`${vi ? "Không thể cập nhật trạng thái thanh toán" : "Unable to refresh payment status"}: ${error.message}`, "error");
     } finally {
       setLoading(false);
     }
@@ -354,7 +354,7 @@ export function BookingManagement({ onRefresh, user }) {
         </div>
       </form>
 
-      {notice && !showModal && <div className="booking-notice" role="alert">{notice}</div>}
+      <Notification notification={notification} onClose={hideNotification} />
       {loading && <p className="loading" role="status">{vi ? "Đang tải đặt phòng…" : "Loading bookings..."}</p>}
 
       <div className="booking-table-wrap">
@@ -444,7 +444,6 @@ export function BookingManagement({ onRefresh, user }) {
                               </tbody>
                             </table>
                           </div>
-                          {notice && <div className="booking-notice" role="alert">{notice}</div>}
                           <div className="modal-actions"><button type="button" onClick={() => setShowRefundModal(false)}>{vi ? "Đóng" : "Close"}</button></div>
                         </div>
                       </div>
@@ -589,7 +588,6 @@ export function BookingManagement({ onRefresh, user }) {
                       )}
                     </section>
                   )}
-                  {notice && <div className="booking-notice" role="alert">{notice}</div>}
                   <div className="modal-actions">
                     <button type="button" onClick={closeDetails}>{vi ? "Đóng" : "Close"}</button>
                     {isStaff && !isTerminal(selectedBooking.status) && (
@@ -601,7 +599,6 @@ export function BookingManagement({ onRefresh, user }) {
             ) : (
               <>
                 <h3 id="booking-details-title">{vi ? "Đang tải chi tiết đặt phòng…" : "Loading booking details..."}</h3>
-                {notice && <div className="booking-notice" role="alert">{notice}</div>}
                 <div className="modal-actions"><button type="button" onClick={closeDetails}>{vi ? "Đóng" : "Close"}</button></div>
               </>
             )}

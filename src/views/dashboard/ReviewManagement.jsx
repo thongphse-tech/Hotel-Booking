@@ -1,12 +1,15 @@
 import { useState, useEffect } from "react";
 import { catalogController } from "../../controllers/catalogController.js";
 import { useLanguage } from "../../i18n.js";
+import { useNotification } from "../useNotification.jsx";
+import { Notification } from "../Notification.jsx";
 
 export function ReviewManagement({ onRefresh }) {
   const [language] = useLanguage();
   const vi = language === "VI";
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(false);
+  const { notification, showNotification, hideNotification } = useNotification();
 
   useEffect(() => {
     loadReviews();
@@ -17,7 +20,7 @@ export function ReviewManagement({ onRefresh }) {
     try {
       setReviews(await catalogController.reviews(true));
     } catch (error) {
-      console.error("Failed to load reviews:", error);
+      showNotification(error.message, "error");
     } finally {
       setLoading(false);
     }
@@ -28,8 +31,9 @@ export function ReviewManagement({ onRefresh }) {
     try {
       await catalogController.approveReview(id, !currentStatus);
       await loadReviews();
+      showNotification(currentStatus ? (vi ? "Đã ẩn đánh giá." : "Review hidden successfully.") : (vi ? "Đã duyệt đánh giá." : "Review approved successfully."), "success");
     } catch (error) {
-      alert(`${vi ? "Lỗi" : "Error"}: ${error.message}`);
+      showNotification(error.message, "error");
     } finally {
       setLoading(false);
     }
@@ -40,6 +44,7 @@ export function ReviewManagement({ onRefresh }) {
       <div className="section-header">
         <h2>{vi ? "Quản lý đánh giá" : "Manage Reviews"}</h2>
       </div>
+      <Notification notification={notification} onClose={hideNotification} />
 
       {loading && <p className="loading">{vi ? "Đang tải…" : "Loading..."}</p>}
 

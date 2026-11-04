@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { catalogController } from "../../controllers/catalogController.js";
 import { useLanguage } from "../../i18n.js";
 import { useConfirmation } from "../useConfirmation.jsx";
+import { useNotification } from "../useNotification.jsx";
+import { Notification } from "../Notification.jsx";
 
 const formatDate = (value) => value ? new Date(value).toLocaleDateString("vi-VN") : "-";
 const formatMoney = (value) => new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(value || 0);
@@ -13,11 +15,11 @@ export function CustomerManagement({ user, onRefresh }) {
   const [customers, setCustomers] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState(null);
   const [formData, setFormData] = useState({});
   const isAdmin = user?.role === "admin";
+  const { notification, showNotification, hideNotification } = useNotification();
 
   useEffect(() => { loadCustomers(); }, []);
 
@@ -26,7 +28,7 @@ export function CustomerManagement({ user, onRefresh }) {
     try {
       setCustomers(await catalogController.customers());
     } catch (error) {
-      setMessage(error.message);
+      showNotification(error.message, "error");
     } finally {
       setLoading(false);
     }
@@ -43,7 +45,7 @@ export function CustomerManagement({ user, onRefresh }) {
     try {
       setSelectedCustomer(await catalogController.customer(customer.id));
     } catch (error) {
-      setMessage(error.message);
+      showNotification(error.message, "error");
     } finally {
       setLoading(false);
     }
@@ -56,10 +58,10 @@ export function CustomerManagement({ user, onRefresh }) {
       const updated = await catalogController.updateCustomer(editing.id, formData);
       setCustomers((items) => items.map((item) => item.id === editing.id ? { ...item, ...formData } : item));
       setEditing(null);
-      setMessage(updated.message || (vi ? "Đã cập nhật thông tin khách hàng." : "Customer details updated successfully."));
+      showNotification(updated.message || (vi ? "Đã cập nhật thông tin khách hàng." : "Customer details updated successfully."), "success");
       onRefresh?.();
     } catch (error) {
-      setMessage(error.message);
+      showNotification(error.message, "error");
     } finally {
       setLoading(false);
     }
@@ -84,10 +86,10 @@ export function CustomerManagement({ user, onRefresh }) {
       await catalogController.setCustomerActive(customer.id, !customer.isActive);
       setCustomers((items) => items.map((item) => item.id === customer.id ? { ...item, isActive: !customer.isActive } : item));
       if (selectedCustomer?.id === customer.id) setSelectedCustomer((item) => ({ ...item, isActive: !customer.isActive }));
-      setMessage(vi ? `Đã ${customer.isActive ? "vô hiệu hóa" : "kích hoạt"} tài khoản khách hàng.` : `Customer account ${action}d successfully.`);
+      showNotification(vi ? `Đã ${customer.isActive ? "vô hiệu hóa" : "kích hoạt"} tài khoản khách hàng.` : `Customer account ${action}d successfully.`, "success");
       onRefresh?.();
     } catch (error) {
-      setMessage(error.message);
+      showNotification(error.message, "error");
     } finally {
       setLoading(false);
     }
@@ -102,7 +104,7 @@ export function CustomerManagement({ user, onRefresh }) {
           <p className="hint">{vi ? "Xem hồ sơ và lịch sử đặt phòng. Staff có thể sửa thông tin liên hệ; chỉ Admin được đổi trạng thái tài khoản." : "View customer profiles and reservation history. Staff can edit contact details; only administrators can change account status."}</p>
         </div>
       </div>
-      {message && <div className="status-callout-text">{message}</div>}
+      <Notification notification={notification} onClose={hideNotification} />
       <div className="customer-toolbar">
         <input aria-label={vi ? "Tìm khách hàng" : "Search customers"} placeholder={vi ? "Tìm theo tên, email hoặc số điện thoại..." : "Search by name, email or phone..."} value={search} onChange={(event) => setSearch(event.target.value)} />
         <span>{filteredCustomers.length} {vi ? "khách hàng" : "customer(s)"}</span>

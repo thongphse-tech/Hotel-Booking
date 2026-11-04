@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { catalogController } from "../../controllers/catalogController.js";
 import { useLanguage } from "../../i18n.js";
+import { useNotification } from "../useNotification.jsx";
+import { Notification } from "../Notification.jsx";
 
 export function DiscountManagement({ onRefresh }) {
   const [language] = useLanguage();
@@ -11,9 +13,9 @@ export function DiscountManagement({ onRefresh }) {
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [formData, setFormData] = useState({});
-  const [notice, setNotice] = useState("");
   const [roomTypesError, setRoomTypesError] = useState("");
   const [discountsError, setDiscountsError] = useState("");
+  const { notification, showNotification, hideNotification } = useNotification();
 
   useEffect(() => {
     loadDiscounts();
@@ -61,10 +63,10 @@ export function DiscountManagement({ onRefresh }) {
       setEditingItem(null);
       setFormData({});
       await loadDiscounts();
-      setNotice(editingItem ? (vi ? "Đã cập nhật mã giảm giá." : "Discount code updated successfully.") : (vi ? "Đã tạo mã giảm giá." : "Discount code created successfully."));
+      showNotification(editingItem ? (vi ? "Đã cập nhật mã giảm giá." : "Discount code updated successfully.") : (vi ? "Đã tạo mã giảm giá." : "Discount code created successfully."), "success");
       onRefresh?.();
     } catch (error) {
-      setNotice(error.message);
+      showNotification(error.message, "error");
     } finally {
       setLoading(false);
     }
@@ -75,8 +77,9 @@ export function DiscountManagement({ onRefresh }) {
     try {
       await catalogController.setDiscountActive(id, !currentStatus);
       await loadDiscounts();
+      showNotification(currentStatus ? (vi ? "Đã vô hiệu hóa mã giảm giá." : "Discount code deactivated.") : (vi ? "Đã kích hoạt mã giảm giá." : "Discount code activated."), "success");
     } catch (error) {
-      setNotice(error.message);
+      showNotification(error.message, "error");
     } finally {
       setLoading(false);
     }
@@ -96,7 +99,7 @@ export function DiscountManagement({ onRefresh }) {
         <h2>{vi ? "Quản lý mã giảm giá" : "Manage Discount Codes"}</h2>
         <button className="primary-btn" onClick={() => openModal()}>+ {vi ? "Thêm mã giảm giá" : "Add Discount"}</button>
       </div>
-      {notice && <div className="booking-notice" role="alert">{notice}</div>}
+      <Notification notification={notification} onClose={hideNotification} />
       {discountsError && <div className="booking-notice" role="alert">{discountsError}</div>}
       {roomTypesError && <div className="booking-notice" role="alert">{vi ? `Không tải được danh sách hạng phòng: ${roomTypesError}` : `Could not load room types: ${roomTypesError}`}</div>}
 

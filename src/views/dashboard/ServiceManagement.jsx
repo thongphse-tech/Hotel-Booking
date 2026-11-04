@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { catalogController } from "../../controllers/catalogController.js";
 import { translateCatalog, useLanguage } from "../../i18n.js";
 import { bookingController } from "../../controllers/bookingController.js";
+import { useNotification } from "../useNotification.jsx";
+import { Notification } from "../Notification.jsx";
 
 const money = (value) => new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(Number(value || 0));
 
@@ -19,6 +21,7 @@ export function ServiceManagement({ onRefresh, user }) {
   const [editingItem, setEditingItem] = useState(null);
   const [formData, setFormData] = useState({});
   const [bookForm, setBookForm] = useState({ bookingId: "", serviceId: "", serviceDate: "", timeSlot: "", quantity: "1", specialNotes: "" });
+  const { notification, showNotification, hideNotification } = useNotification();
 
   useEffect(() => {
     loadServices();
@@ -38,7 +41,7 @@ export function ServiceManagement({ onRefresh, user }) {
         setServiceBookings(allServiceBookings || []);
       }
     } catch (error) {
-      console.error("Failed to load services data:", error);
+      showNotification(error.message, "error");
     } finally {
       setLoading(false);
     }
@@ -57,9 +60,10 @@ export function ServiceManagement({ onRefresh, user }) {
       setEditingItem(null);
       setFormData({});
       await loadServices();
+      showNotification(editingItem ? (vi ? "Đã cập nhật dịch vụ." : "Service updated successfully.") : (vi ? "Đã tạo dịch vụ mới." : "Service created successfully."), "success");
       onRefresh?.();
     } catch (error) {
-      alert(`${vi ? "Lỗi" : "Error"}: ${error.message}`);
+      showNotification(error.message, "error");
     } finally {
       setLoading(false);
     }
@@ -71,9 +75,10 @@ export function ServiceManagement({ onRefresh, user }) {
     try {
       await catalogController.deleteService(id);
       await loadServices();
+      showNotification(vi ? "Đã xóa dịch vụ." : "Service deleted successfully.", "success");
       onRefresh?.();
     } catch (error) {
-      alert(`${vi ? "Lỗi" : "Error"}: ${error.message}`);
+      showNotification(error.message, "error");
     } finally {
       setLoading(false);
     }
@@ -82,7 +87,7 @@ export function ServiceManagement({ onRefresh, user }) {
   async function handleBookService(e) {
     e.preventDefault();
     if (!bookForm.bookingId || !bookForm.serviceId) {
-      alert(vi ? "Vui lòng chọn phòng khách đang ở và dịch vụ cần đặt." : "Select an occupied room and a service.");
+      showNotification(vi ? "Vui lòng chọn phòng khách đang ở và dịch vụ cần đặt." : "Select an occupied room and a service.", "error");
       return;
     }
     setLoading(true);
@@ -95,12 +100,12 @@ export function ServiceManagement({ onRefresh, user }) {
         quantity: Number(bookForm.quantity || 1),
         specialNotes: bookForm.specialNotes
       });
-      alert(vi ? "✅ Đã đặt dịch vụ thành công cho khách hàng!" : "✅ Service order created successfully for the guest!");
+      showNotification(vi ? "✅ Đã đặt dịch vụ thành công cho khách hàng!" : "✅ Service order created successfully for the guest!", "success");
       setShowBookModal(false);
       setBookForm({ bookingId: "", serviceId: "", serviceDate: "", timeSlot: "", quantity: "1", specialNotes: "" });
       await loadServices();
     } catch (error) {
-      alert(`${vi ? "Lỗi đặt dịch vụ" : "Service order failed"}: ${error.message}`);
+      showNotification(`${vi ? "Lỗi đặt dịch vụ" : "Service order failed"}: ${error.message}`, "error");
     } finally {
       setLoading(false);
     }
@@ -116,6 +121,7 @@ export function ServiceManagement({ onRefresh, user }) {
     <div className="management-section">
       <div className="section-header">
         <h2>{activeTab === "catalog" ? (vi ? "Quản lý dịch vụ khách sạn" : "Hotel Service Management") : (vi ? "Đặt dịch vụ cho khách & Đơn dịch vụ" : "Guest Service Orders")}</h2>
+        <Notification notification={notification} onClose={hideNotification} />
         <div style={{ display: "flex", gap: "10px" }}>
           <div className="tabs">
             {!isAdmin && <button className={activeTab === "bookings" ? "active" : ""} onClick={() => setActiveTab("bookings")}>

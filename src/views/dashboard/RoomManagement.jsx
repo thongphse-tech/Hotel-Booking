@@ -4,6 +4,8 @@ import { catalogController } from "../../controllers/catalogController.js";
 import "./room-management.css";
 import { translateCatalog, useLanguage } from "../../i18n.js";
 import { useConfirmation } from "../useConfirmation.jsx";
+import { useNotification } from "../useNotification.jsx";
+import { Notification } from "../Notification.jsx";
 
 const roomStatuses = ["available", "occupied", "maintenance", "cleaning"];
 
@@ -21,7 +23,7 @@ export function RoomManagement({ onRefresh, user }) {
   const [editingItem, setEditingItem] = useState(null);
   const [formData, setFormData] = useState({});
   const [formErrors, setFormErrors] = useState({});
-  const [notice, setNotice] = useState("");
+  const { notification, showNotification, hideNotification } = useNotification();
 
   useEffect(() => {
     loadData();
@@ -29,12 +31,11 @@ export function RoomManagement({ onRefresh, user }) {
 
   async function loadData() {
     setLoading(true);
-    setNotice("");
     try {
       if (isAdmin) setRoomTypes(await catalogController.roomTypes());
       if (activeTab === "rooms") setRooms(await roomController.list());
     } catch (error) {
-      setNotice(error.message);
+      showNotification(error.message, "error");
     } finally {
       setLoading(false);
     }
@@ -57,7 +58,6 @@ export function RoomManagement({ onRefresh, user }) {
     if (activeTab === "rooms" && !validateRoomForm()) return;
 
     setLoading(true);
-    setNotice("");
     try {
       if (activeTab === "rooms") {
         const payload = {
@@ -79,12 +79,14 @@ export function RoomManagement({ onRefresh, user }) {
       setFormData({});
       setFormErrors({});
       await loadData();
+      const itemLabel = activeTab === "rooms" ? (vi ? "phòng" : "room") : (vi ? "loại phòng" : "room type");
+      showNotification(editingItem ? (vi ? `Đã cập nhật ${itemLabel}.` : `${itemLabel.charAt(0).toUpperCase() + itemLabel.slice(1)} updated successfully.`) : (vi ? `Đã tạo ${itemLabel}.` : `${itemLabel.charAt(0).toUpperCase() + itemLabel.slice(1)} created successfully.`), "success");
       onRefresh?.();
     } catch (error) {
       if (activeTab === "rooms" && error.status === 409) {
         setFormErrors((current) => ({ ...current, roomNumber: error.message }));
       } else {
-        setNotice(error.message);
+        showNotification(error.message, "error");
       }
     } finally {
       setLoading(false);
@@ -104,14 +106,14 @@ export function RoomManagement({ onRefresh, user }) {
     });
     if (!confirmed) return;
     setLoading(true);
-    setNotice("");
     try {
       if (activeTab === "rooms") await roomController.delete(id);
       else await roomController.deleteType(id);
       await loadData();
+      showNotification(vi ? `Đã xóa ${itemLabel}.` : `${itemLabel.charAt(0).toUpperCase() + itemLabel.slice(1)} deleted successfully.`, "success");
       onRefresh?.();
     } catch (error) {
-      setNotice(error.message);
+      showNotification(error.message, "error");
     } finally {
       setLoading(false);
     }
@@ -120,15 +122,15 @@ export function RoomManagement({ onRefresh, user }) {
   async function handleUpdateStatus(id, status) {
     const original = rooms.find((room) => room.id === id)?.status;
     setStatusRoomId(id);
-    setNotice("");
     setRooms((current) => current.map((room) => room.id === id ? { ...room, status } : room));
     try {
       const updated = await roomController.updateStatus(id, status);
       setRooms((current) => current.map((room) => room.id === id ? { ...room, status: updated.status } : room));
+      showNotification(vi ? "Đã cập nhật trạng thái phòng." : "Room status updated successfully.", "success");
       onRefresh?.();
     } catch (error) {
       setRooms((current) => current.map((room) => room.id === id ? { ...room, status: original } : room));
-      setNotice(error.message);
+      showNotification(error.message, "error");
     } finally {
       setStatusRoomId(null);
     }
@@ -145,7 +147,6 @@ export function RoomManagement({ onRefresh, user }) {
         }
       : item || {});
     setFormErrors({});
-    setNotice("");
     setShowModal(true);
   }
 
@@ -175,7 +176,7 @@ export function RoomManagement({ onRefresh, user }) {
         )}
       </header>
 
-      {notice && <div className="room-management-notice" role="alert">{notice}</div>}
+      <Notification notification={notification} onClose={hideNotification} />
       {loading && <p className="loading" role="status">{vi ? "Đang tải…" : "Loading..."}</p>}
 
       {activeTab === "rooms" ? (
@@ -280,7 +281,6 @@ export function RoomManagement({ onRefresh, user }) {
                   <label>{vi ? "Mô tả" : "Description"}<textarea value={formData.description || ""} onChange={(event) => updateForm("description", event.target.value)} /></label>
                 </>
               )}
-              {notice && <div className="room-management-notice" role="alert">{notice}</div>}
               <div className="modal-actions">
                 <button type="button" onClick={() => setShowModal(false)}>{vi ? "Hủy" : "Cancel"}</button>
                 <button type="submit" disabled={loading}>{loading ? (vi ? "Đang lưu…" : "Saving...") : (vi ? "Lưu" : "Save")}</button>
