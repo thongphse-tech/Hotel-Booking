@@ -9,7 +9,6 @@ import { CustomerManagement } from "./CustomerManagement.jsx";
 import { ServiceManagement } from "./ServiceManagement.jsx";
 import { DiscountManagement } from "./DiscountManagement.jsx";
 import { ReviewManagement } from "./ReviewManagement.jsx";
-import { BookingDetailSample } from "./BookingDetailSample.jsx";
 import { translateCatalog, useLanguage } from "../../i18n.js";
 import BrandLogo from "../BrandLogo.jsx";
 import { useConfirmation } from "../useConfirmation.jsx";
@@ -111,7 +110,6 @@ export default function Dashboard({ user, onLogout, initialTab = "overview", onT
   const [tab, setTab] = useState(initialTab);
   const [lang, setLang] = useLanguage();
   const { confirm, dialog: confirmationDialog } = useConfirmation();
-  const [selectedBooking, setSelectedBooking] = useState(null);
   const [stats, setStats] = useState({ rooms: 0, bookings: 0, customers: 0, services: 0, roomTypes: 0 });
   const [roomsList, setRoomsList] = useState([]);
   const [bookingsList, setBookingsList] = useState([]);
@@ -154,6 +152,16 @@ export default function Dashboard({ user, onLogout, initialTab = "overview", onT
     }
   }, [user]);
 
+  // Auto-refresh dữ liệu mỗi 30 giây khi ở tab overview hoặc rooms
+  useEffect(() => {
+    if ((tab === "overview" || tab === "rooms") && user && ["admin", "staff"].includes(user.role)) {
+      const interval = setInterval(() => {
+        loadStats();
+      }, 30000); // 30 giây
+      return () => clearInterval(interval);
+    }
+  }, [tab, user]);
+
   async function loadStats() {
     setLoading(true);
     try {
@@ -183,11 +191,6 @@ export default function Dashboard({ user, onLogout, initialTab = "overview", onT
     }
   }
 
-  function handleOpenBookingDetail(booking = null) {
-    setSelectedBooking(booking);
-    changeTab("booking-detail");
-  }
-
   async function handleLogoutClick() {
     const confirmed = await confirm({
       title: lang === "VI" ? "Đăng xuất?" : "Sign out?",
@@ -202,7 +205,6 @@ export default function Dashboard({ user, onLogout, initialTab = "overview", onT
   // Danh mục menu điều hướng Sidebar (Mã giảm giá chỉ dành cho Admin)
   const navItems = [
     { id: "overview", label: t.overview, icon: "📊" },
-    ...(user?.role === "staff" ? [{ id: "booking-detail", label: lang === "VI" ? "Chi tiết Booking" : "Booking Detail", icon: "📑" }] : []),
     { id: "rooms", label: t.rooms, icon: "🚪" },
     { id: "bookings", label: t.bookings, icon: "📅" },
     { id: "customers", label: t.customers, icon: "👥" },
@@ -234,10 +236,7 @@ export default function Dashboard({ user, onLogout, initialTab = "overview", onT
             <button
               key={item.id}
               className={`nav-item-btn ${tab === item.id ? "active" : ""}`}
-              onClick={() => {
-                if (item.id !== "booking-detail") setSelectedBooking(null);
-                changeTab(item.id);
-              }}
+              onClick={() => changeTab(item.id)}
               title={item.label}
             >
               <span className="item-icon">{item.icon}</span>
@@ -411,12 +410,7 @@ export default function Dashboard({ user, onLogout, initialTab = "overview", onT
               t={t}
               lang={lang}
               onNavigate={(dest) => changeTab(dest)}
-            />
-          )}
-          {tab === "booking-detail" && user?.role === "staff" && (
-            <BookingDetailSample
-              bookingData={selectedBooking}
-              onBack={() => changeTab("bookings")}
+              onRefresh={loadStats}
             />
           )}
           {tab === "rooms" && <RoomManagement user={user} onRefresh={loadStats} />}
@@ -432,7 +426,7 @@ export default function Dashboard({ user, onLogout, initialTab = "overview", onT
 }
 
 // Overview Thiết kế Mới Đẳng Cấp & Trực Quan Hoàn Chỉnh
-function ModernOverview({ stats, rooms, bookings, services, reviews, loading, t, onNavigate, user, lang }) {
+function ModernOverview({ stats, rooms, bookings, services, reviews, loading, t, onNavigate, user, lang, onRefresh }) {
   const [roomFilter, setRoomFilter] = useState("all");
 
   const displayRooms = rooms;
@@ -452,7 +446,7 @@ function ModernOverview({ stats, rooms, bookings, services, reviews, loading, t,
 
   return (
     <div className="modern-overview-container">
-      <div style={{ marginBottom: "16px" }}>
+      <div style={{ marginBottom: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <h1 style={{ fontSize: "24px", fontWeight: "700", margin: "0 0 4px", color: "#0f172a" }}>
             {t.overviewTitle}
@@ -461,6 +455,36 @@ function ModernOverview({ stats, rooms, bookings, services, reviews, loading, t,
             {t.overviewSubtitle}
           </p>
         </div>
+        <button
+          onClick={onRefresh}
+          disabled={loading}
+          style={{
+            padding: "8px 16px",
+            border: "1px solid #e2e8f0",
+            borderRadius: "8px",
+            background: "#ffffff",
+            color: "#0f172a",
+            fontSize: "13px",
+            fontWeight: "500",
+            cursor: loading ? "not-allowed" : "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            transition: "all 0.15s"
+          }}
+          onMouseEnter={(e) => {
+            if (!loading) {
+              e.target.style.background = "#f1f5f9";
+              e.target.style.borderColor = "#cbd5e1";
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.background = "#ffffff";
+            e.target.style.borderColor = "#e2e8f0";
+          }}
+        >
+          {loading ? "⏳" : "🔄"} {lang === "VI" ? "Làm mới" : "Refresh"}
+        </button>
       </div>
 
       {/* 2. Dãy thẻ Thống kê Cao cấp (Top Metric Cards) */}

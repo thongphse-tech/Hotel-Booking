@@ -149,6 +149,42 @@
   color: #9c4545;
 }
 
+.booking-actions .booking-checkin-button {
+  border-color: #16a34a;
+  background: #16a34a;
+  color: #fff;
+}
+
+.booking-actions .booking-checkin-button:hover:not(:disabled) {
+  border-color: #15803d;
+  background: #15803d;
+}
+
+.booking-actions .booking-checkin-button:disabled {
+  border-color: #d1d5db;
+  background: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.booking-actions .booking-checkout-button {
+  border-color: #f97316;
+  background: #f97316;
+  color: #fff;
+}
+
+.booking-actions .booking-checkout-button:hover:not(:disabled) {
+  border-color: #ea580c;
+  background: #ea580c;
+}
+
+.booking-actions .booking-checkout-button:disabled {
+  border-color: #d1d5db;
+  background: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
 .booking-empty {
   padding: 28px !important;
   color: #68736b;

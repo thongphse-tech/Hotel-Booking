@@ -118,12 +118,11 @@ export const bookingRepo = {
     try {
       await client.query("BEGIN");
       const booking = (await client.query(
-        "SELECT bookingid, roomid, status, totalamount, checkindate <= CURRENT_DATE AS arrival_allowed FROM booking WHERE bookingid = $1 FOR UPDATE",
+        "SELECT bookingid, roomid, status, totalamount FROM booking WHERE bookingid = $1 FOR UPDATE",
         [id]
       )).rows[0];
       if (!booking) throw Object.assign(new Error("Booking not found."), { status: 404 });
       if (booking.status !== "confirmed") throw Object.assign(new Error("Only confirmed bookings can be checked in."), { status: 409 });
-      if (!booking.arrival_allowed) throw Object.assign(new Error("Check-in is not available before the booking arrival date."), { status: 409 });
 
       const fullyPaid = (await client.query(
         "SELECT COALESCE(SUM(amount), 0) >= $2::numeric AS fully_paid FROM payment WHERE bookingid = $1 AND status = 'completed'",

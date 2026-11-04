@@ -455,6 +455,7 @@ export function BookingManagement({ onRefresh, user }) {
                       <>
                         <button
                           type="button"
+                          className="booking-checkin-button"
                           disabled={loading || booking.paymentStatus !== "Paid" || booking.roomStatus !== "available"}
                           title={booking.paymentStatus !== "Paid"
                             ? (vi ? "Phải hoàn tất thanh toán trước khi nhận phòng." : "Payment must be completed before check-in.")
@@ -472,6 +473,7 @@ export function BookingManagement({ onRefresh, user }) {
                     {booking.status === "Checked In" && (
                       <button
                         type="button"
+                        className="booking-checkout-button"
                         disabled={loading || booking.balance > 0}
                         title={booking.balance > 0 ? (vi ? "Thanh toán số dư còn lại trước khi trả phòng." : "Settle the outstanding balance before check-out.") : (vi ? "Xử lý trả phòng" : "Process check-out")}
                         onClick={() => handleTransition(booking.id, "checkOut")}
