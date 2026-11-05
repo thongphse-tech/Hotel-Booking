@@ -39,7 +39,9 @@ export const catalogRepo = {
       await client.query("BEGIN");
       const booking = (await client.query("SELECT bookingid, customerid, checkindate, checkoutdate, status FROM booking WHERE bookingid = $1 FOR UPDATE", [bookingId])).rows[0];
       if (!booking || !["confirmed", "checked_in"].includes(booking.status)) throw Object.assign(new Error("A confirmed or active room booking is required."), { status: 409 });
-      if (serviceDate < String(booking.checkindate).slice(0, 10) || serviceDate >= String(booking.checkoutdate).slice(0, 10)) throw Object.assign(new Error("Service date must be within the room stay period."), { status: 400 });
+      const checkInDate = new Date(booking.checkindate).toISOString().slice(0, 10);
+      const checkOutDate = new Date(booking.checkoutdate).toISOString().slice(0, 10);
+      if (serviceDate < checkInDate || serviceDate >= checkOutDate) throw Object.assign(new Error("Service date must be within the room stay period."), { status: 400 });
       const service = (await client.query("SELECT * FROM hotelservice WHERE serviceid = $1 AND isdeleted = false FOR UPDATE", [serviceId])).rows[0];
       if (!service) throw Object.assign(new Error("This service is currently unavailable."), { status: 404 });
       if (service.capacity !== null) {

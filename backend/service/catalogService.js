@@ -107,7 +107,7 @@ export const catalogService = {
     const serviceDate = String(data.serviceDate || "");
     const timeSlot = String(data.timeSlot || "").trim();
     const specialNotes = String(data.specialNotes || "").trim();
-    if (!Number.isInteger(bookingId) || bookingId <= 0 || !Number.isInteger(serviceId) || serviceId <= 0 || !Number.isInteger(quantity) || quantity <= 0 || !/^\d{4}-\d{2}-\d{2}$/.test(serviceDate) || !timeSlot) throw new HttpError(400, "Booking, service, date, time slot, and a positive quantity are required.");
+    if (!Number.isInteger(bookingId) || bookingId <= 0 || !Number.isInteger(serviceId) || serviceId <= 0 || !Number.isInteger(quantity) || quantity <= 0 || !/^\d{4}-\d{2}-\d{2}$/.test(serviceDate)) throw new HttpError(400, "Booking, service, date, and a positive quantity are required.");
     const parsedServiceDate = new Date(`${serviceDate}T00:00:00Z`);
     if (Number.isNaN(parsedServiceDate.getTime()) || parsedServiceDate.toISOString().slice(0, 10) !== serviceDate) throw new HttpError(400, "Service date must be a valid calendar date.");
     if (timeSlot.length > 50 || specialNotes.length > 500) throw new HttpError(400, "Time slot must be 50 characters or fewer and notes must be 500 characters or fewer.");
@@ -115,7 +115,8 @@ export const catalogService = {
     if (!booking) throw new HttpError(404, "Room booking not found.");
     if (user.role === "customer" && booking.customerid !== user.customerId) throw new HttpError(403, "You do not have permission to book a service for this stay.");
     if (user.role === "staff" && booking.status !== "checked_in") throw new HttpError(409, "Staff can book services on behalf of an in-house guest only.");
-    const serviceBooking = await catalogRepo.createServiceBooking({ bookingId, serviceId, quantity, serviceDate, timeSlot, specialNotes });
+    if (user.role === "customer" && !["confirmed", "checked_in"].includes(booking.status)) throw new HttpError(409, "Services can only be booked for confirmed or checked-in bookings.");
+    const serviceBooking = await catalogRepo.createServiceBooking({ bookingId, serviceId, quantity, serviceDate, timeSlot: timeSlot || "Theo yêu cầu", specialNotes });
     const notification = await catalogRepo.serviceBookingNotification(bookingId, serviceId);
     const notificationDelivered = notification
       ? await sendNotification({ to: notification.email, subject: "Hotel service booking confirmed", text: `Hello ${notification.fullname}, ${notification.servicename} has been added to booking ${notification.bookingid} for ${serviceDate} at ${timeSlot}.` })
