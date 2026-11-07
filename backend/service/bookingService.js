@@ -4,6 +4,7 @@ import { validateStayDates } from "../model/bookingModel.js";
 import { HttpError } from "./httpError.js";
 import { sendNotification } from "./notificationService.js";
 import { validatePhone } from "../model/userModel.js";
+import { vnpayService } from "./vnpayService.js";
 
 const paymentMethods = ["credit_card", "debit_card", "cash", "bank_transfer", "paypal"];
 
@@ -137,6 +138,12 @@ export const bookingService = {
       await bookingRepo.expirePendingBookings();
       throw new HttpError(409, "The booking hold has expired. Please create a new booking.");
     }
+    
+    // Mock payment (test only) - dùng cash method
+    if (method === "mock" || method === "vnpay") {
+      return { payment: await bookingRepo.createPayment({ bookingId: id, amount: booking.totalamount, method: "cash" }), message: "Payment request created. Booking will be confirmed after payment." };
+    }
+    
     if (!paymentMethods.includes(method)) throw new HttpError(400, "Invalid payment method.");
     return { payment: await bookingRepo.createPayment({ bookingId: id, amount: booking.totalamount, method }), message: "Payment request created. Booking will be confirmed after payment gateway confirmation." };
   },
@@ -191,5 +198,27 @@ export const bookingService = {
       process.stderr.write(`Payment confirmation notification failed: ${error.message}\n`);
     }
     return { ...result.payment, message: "Payment successful." };
+  },
+  verifyVnpayCallback: async (vnp_SecureHash, tmnCode, hashSecret, params) => {
+    const result = await vnpayService.verifyCallback(vnp_SecureHash, tmnCode, hashSecret, params);
+    
+    if (result.success) {
+      const bookingId = parseInt(result.txnRef.replace('BK', ''));
+      const payment = await bookingRepo.createPayment({ 
+        bookingId, 
+        amount: result.amount, 
+        method: "vnpay" 
+      });
+      await bookingRepo.settlePayment(payment.paymentid, "completed", "VNPAY_" + result.txnRef, result.amount);
+      
+      const booking = await bookingRepo.findById(bookingId);
+      await sendNotification({ 
+        to: booking.email, 
+        subject: "Booking confirmed", 
+        text: `Your booking ${bookingId} has been confirmed via VNPay.` 
+      });
+    }
+    
+    return result;
   }
 };

@@ -61,12 +61,12 @@ export default function PaymentScreen({ booking, onCancel, onExpired, onPaymentC
     let active = true;
     if (booking.status !== "Pending Payment") return undefined;
     setRequesting(true);
-    bookingController.pay(booking.id, "bank_transfer")
+    bookingController.pay(booking.id, "mock")
       .then((result) => {
         if (active) setPaymentRequest(result.payment);
       })
       .catch((requestError) => {
-        if (active) setError(requestError.message || (vi ? "Không thể tạo yêu cầu Mock Payment." : "Unable to create the mock payment request."));
+        if (active) setError(requestError.message || (vi ? "Không thể tạo yêu cầu thanh toán." : "Unable to create payment request."));
       })
       .finally(() => {
         if (active) setRequesting(false);

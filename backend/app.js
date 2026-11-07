@@ -14,7 +14,7 @@ import { query } from "./config/database.js";
 
 const app = express();
 
-const corsOrigin = process.env.CLIENT_ORIGIN === "*" ? "*" : (process.env.CLIENT_ORIGIN?.split(",") || "http://localhost:5173");
+const corsOrigin = process.env.CLIENT_ORIGIN === "*" ? "*" : (process.env.CLIENT_ORIGIN?.split(",") || ["http://localhost:5173", "http://localhost:5174"]);
 app.use(cors({ origin: corsOrigin }));
 app.use(express.json({ limit: "1mb" }));
 app.get("/health", async (req, res, next) => {

@@ -253,6 +253,22 @@ export default function App() {
     return () => { active = false; };
   }, [page, user]);
 
+  // Xử lý VNPay callback
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const payment = urlParams.get("payment");
+    const bookingId = urlParams.get("bookingId");
+    
+    if (payment === "success" && bookingId) {
+      setNotice(language === "VI" ? `Thanh toán thành công cho đặt phòng BK-${bookingId}!` : `Payment successful for booking BK-${bookingId}!`);
+      // Xóa URL parameters
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (payment === "failed") {
+      setNotice(language === "VI" ? "Thanh toán thất bại. Vui lòng thử lại." : "Payment failed. Please try again.");
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   async function submitReview(event) {
     event.preventDefault();
     if (!reviewBooking || !reviewForm.rating || reviewForm.comment.trim().length < 10) {

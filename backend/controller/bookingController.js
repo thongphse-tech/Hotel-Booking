@@ -15,8 +15,24 @@ export const bookingController = {
   collectStayPayment: async (req, res) => res.status(201).json(await bookingService.collectStayPayment(req.params.id, req.body?.method)),
   listRefundRequests: async (req, res) => res.json(await bookingService.listRefundRequests(req.user)),
   completeRefund: async (req, res) => res.json(await bookingService.completeRefund(req.params.id, req.user)),
-  createPayment: async (req, res) => res.status(201).json(await bookingService.createPayment(req.params.id, req.user, req.body.method)),
+  createPayment: async (req, res) => {
+    const method = req.body?.method || "mock";
+    res.status(201).json(await bookingService.createPayment(req.params.id, req.user, method));
+  },
   paymentHistory: async (req, res) => res.json(await bookingService.paymentHistory(req.user, req.query)),
   simulatePayment: async (req, res) => res.status(200).json(await bookingService.simulatePayment(req.body?.bookingId, req.user, req.body?.outcome)),
-  confirmPayment: async (req, res) => res.json(await bookingService.confirmPayment(req.body))
+  confirmPayment: async (req, res) => res.json(await bookingService.confirmPayment(req.body)),
+  vnpayCallback: async (req, res) => {
+    const { vnp_SecureHash, vnp_TxnRef, vnp_Amount, vnp_ResponseCode, vnp_TransactionStatus } = req.query;
+    const tmnCode = process.env.VNP_TMN_CODE;
+    const hashSecret = process.env.VNP_HASH_SECRET;
+    
+    const result = await bookingService.verifyVnpayCallback(vnp_SecureHash, tmnCode, hashSecret, req.query);
+    
+    if (result.success) {
+      res.redirect(`${process.env.CLIENT_ORIGIN}/bookings?payment=success&bookingId=${result.txnRef.replace('BK', '')}`);
+    } else {
+      res.redirect(`${process.env.CLIENT_ORIGIN}/bookings?payment=failed`);
+    }
+  }
 };

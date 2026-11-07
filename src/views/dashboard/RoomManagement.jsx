@@ -160,7 +160,7 @@ export function RoomManagement({ onRefresh, user }) {
       {confirmationDialog}
       <header className="section-header room-management-header">
         <div>
-          <h2>{activeTab === "rooms" ? (vi ? "Quản lý phòng" : "Room Management") : (vi ? "Quản lý hạng phòng (UC-09)" : "Room Type Management (UC-09)")}</h2>
+          <h2>{activeTab === "rooms" ? (vi ? "Quản lý phòng" : "Room Management") : (vi ? "Quản lý hạng phòng" : "Room Type Management")}</h2>
           <p>{vi ? "Xem danh sách phòng và cập nhật trạng thái vận hành." : "View room inventory and keep operational status up to date."}</p>
         </div>
         {isAdmin && (

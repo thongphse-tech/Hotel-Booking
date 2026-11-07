@@ -96,10 +96,51 @@ async function seed() {
       ON CONFLICT (accountid) DO UPDATE SET fullname = 'System Administrator', email = $2
     `, [adminId, adminEmail]);
 
+    // Insert Test Booking for Customer ID = 6 (Checked Out - for Review Testing)
+    console.log('Seeding test booking for customer ID = 6...');
+    const checkInDate = new Date();
+    checkInDate.setDate(checkInDate.getDate() - 10); // 10 days ago
+    const checkOutDate = new Date();
+    checkOutDate.setDate(checkOutDate.getDate() - 7); // 7 days ago
+
+    const bookingResult = await pool.query(`
+      INSERT INTO booking (customerid, roomid, checkindate, checkoutdate, guestcount, status, totalamount, guestname, contactphone)
+      VALUES (6, 1, $1, $2, 2, 'checked_out', 1600000, 'Test Customer', '0909876543')
+      ON CONFLICT DO NOTHING
+      RETURNING bookingid
+    `, [checkInDate.toISOString().split('T')[0], checkOutDate.toISOString().split('T')[0]]);
+
+    if (bookingResult.rows.length > 0) {
+      const bookingId = bookingResult.rows[0].bookingid;
+
+      // Insert completed payment for this booking
+      await pool.query(`
+        INSERT INTO payment (bookingid, amount, paymentmethod, status, transactionref)
+        VALUES ($1, 1600000, 'credit_card', 'completed', 'TXN_TEST_001')
+        ON CONFLICT DO NOTHING
+      `, [bookingId]);
+
+      // Insert approved review for this booking
+      await pool.query(`
+        INSERT INTO review (bookingid, customerid, rating, title, comment, isapproved)
+        VALUES ($1, 6, 5, 'Good', 'Trải nghiệm tuyệt vời', true)
+        ON CONFLICT (bookingid, customerid) DO UPDATE SET isapproved = true
+      `, [bookingId]);
+
+      console.log('✅ Test booking for customer ID = 6 created successfully!');
+      console.log('   Booking ID:', bookingId);
+      console.log('   Status: checked_out');
+      console.log('   Review: Approved (5 stars)');
+    }
+
     console.log('✅ Database seed completed successfully!');
     console.log('\n=== Admin Account ===');
     console.log('Email:', adminEmail);
     console.log('Password: Admin@123');
+    console.log('\n=== Test Booking ===');
+    console.log('Customer ID: 6');
+    console.log('Status: checked_out');
+    console.log('Review: Approved (5 stars - "Trải nghiệm tuyệt vời")');
     console.log('\nPlease change the password after first login!');
 
     process.exit(0);

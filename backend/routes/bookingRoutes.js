@@ -22,5 +22,6 @@ router.post("/:id/cancel", asyncHandler(bookingController.cancel));
 router.post("/:id/payments", authorize("customer"), asyncHandler(bookingController.createPayment));
 router.post("/:id/check-in", authorize("staff"), asyncHandler(bookingController.checkIn));
 router.post("/:id/check-out", authorize("staff"), asyncHandler(bookingController.checkOut));
+router.post("/payment/vnpay/callback", asyncHandler(bookingController.vnpayCallback));
 
 export default router;
