@@ -1,6 +1,6 @@
 import { pool, query } from "../config/database.js";
 
-const roomFields = "r.roomid, r.roomtypeid, r.roomnumber, r.floor, r.status, r.isdeleted, rt.name AS type, rt.price, rt.capacity, rt.amenities, rt.description";
+const roomFields = "r.roomid, r.roomtypeid, r.roomnumber, r.floor, r.status, r.isdeleted, rt.name AS type, rt.price, rt.capacity, rt.amenities, rt.description, rt.imageurl";
 const roomSortOptions = {
   "price-asc": "rt.price ASC, r.roomnumber ASC",
   "price-desc": "rt.price DESC, r.roomnumber ASC",
@@ -77,6 +77,7 @@ export const roomRepo = {
   listTypes: async () => (await query("SELECT * FROM roomtype WHERE isdeleted = false ORDER BY roomtypeid")).rows,
   createType: async (data) => (await query("INSERT INTO roomtype (name, price, capacity, amenities, description) VALUES ($1, $2, $3, $4, $5) RETURNING *", [data.name.trim(), data.price, data.capacity, data.amenities || null, data.description || null])).rows[0],
   updateType: async (id, data) => (await query("UPDATE roomtype SET name = COALESCE($2, name), price = COALESCE($3, price), capacity = COALESCE($4, capacity), amenities = COALESCE($5, amenities), description = COALESCE($6, description) WHERE roomtypeid = $1 AND isdeleted = false RETURNING *", [id, data.name?.trim() ?? null, data.price ?? null, data.capacity ?? null, data.amenities ?? null, data.description ?? null])).rows[0],
+  setTypeImage: async (id, imageurl) => (await query("UPDATE roomtype SET imageurl = $2 WHERE roomtypeid = $1 AND isdeleted = false RETURNING roomtypeid, imageurl", [id, imageurl])).rows[0],
   deleteType: async (id) => (await query("UPDATE roomtype SET isdeleted = true WHERE roomtypeid = $1 AND isdeleted = false RETURNING roomtypeid", [id])).rows[0],
   typeHasRooms: async (id) => (await query("SELECT 1 FROM room WHERE roomtypeid = $1 AND isdeleted = false LIMIT 1", [id])).rowCount > 0
 };

@@ -40,7 +40,8 @@ export const catalogService = {
     basePrice: Number(item.price),
     capacity: Number(item.capacity),
     amenities: item.amenities || "",
-    description: item.description || ""
+    description: item.description || "",
+    image: item.imageurl || ""
   })),
   getDiscounts: async () => (await apiClient.request("/discounts")).map((item) => ({
     id: item.codeid,
@@ -65,6 +66,7 @@ export const catalogService = {
     validFrom: item.validfrom ? String(item.validfrom).slice(0, 10) : "",
     validTo: item.validto ? String(item.validto).slice(0, 10) : ""
   })),
+  deleteDiscount: (id) => apiClient.request(`/discounts/${id}`, { method: "DELETE" }),
   getServiceBookings: () => apiClient.request("/service-bookings"),
   bookService: (payload) => apiClient.request("/service-bookings", { method: "POST", body: JSON.stringify(payload) }),
   getReviews: async (includePending = false) => {

@@ -9,6 +9,25 @@ export const catalogRepo = {
   createDiscount: async (data) => (await query("INSERT INTO discountcode (codestring, roomtypeid, discounttype, discountvalue, validfrom, validto, usagelimit) VALUES (upper($1), $2, $3, $4, $5, $6, $7) RETURNING *", [data.codeString.trim(), data.roomTypeId, data.discountType, data.discountValue, data.validFrom, data.validTo, data.usageLimit])).rows[0],
   updateDiscount: async (id, data) => (await query("UPDATE discountcode SET codestring = $2, roomtypeid = $3, discounttype = $4, discountvalue = $5, validfrom = $6, validto = $7, usagelimit = $8 WHERE codeid = $1 RETURNING *", [id, data.codeString.trim(), data.roomTypeId, data.discountType, data.discountValue, data.validFrom, data.validTo, data.usageLimit])).rows[0],
   setDiscountActive: async (id, active) => (await query("UPDATE discountcode SET isactive = $2 WHERE codeid = $1 RETURNING *", [id, active])).rows[0],
+  deleteDiscount: async (id) => {
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const usage = await client.query("SELECT COUNT(*)::int AS count FROM booking WHERE codeid = $1 AND status <> 'cancelled'", [id]);
+      if (usage.rows[0].count > 0) {
+        await client.query("ROLLBACK");
+        return { blocked: true };
+      }
+      const deleted = await client.query("DELETE FROM discountcode WHERE codeid = $1 RETURNING codeid", [id]);
+      await client.query("COMMIT");
+      return deleted.rows[0] ? { deleted: true } : null;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  },
   listServices: async ({ category } = {}) => (await query("SELECT serviceid, name, category, description, price, conditions, operatinghours, capacity FROM hotelservice WHERE isdeleted = false AND ($1::text IS NULL OR lower(category) = lower($1)) ORDER BY serviceid", [category || null])).rows,
   getService: async (id) => (await query("SELECT * FROM hotelservice WHERE serviceid = $1 AND isdeleted = false", [id])).rows[0],
   findServiceName: async (name, category, excludedId = null) => (await query("SELECT serviceid FROM hotelservice WHERE lower(name) = lower($1) AND lower(category) = lower($2) AND isdeleted = false AND ($3::int IS NULL OR serviceid <> $3)", [name, category, excludedId])).rows[0],

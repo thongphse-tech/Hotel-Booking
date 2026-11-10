@@ -12,8 +12,8 @@ const mapRoom = (item) => ({
   price: Number(item.price),
   capacity: Number(item.capacity),
   beds: item.bedtypes || item.bed_types || "Bed configuration not specified",
-  image: roomImage,
-  imagePreview: roomPreviewImage,
+  image: item.imageurl ? apiClient.assetUrl(item.imageurl) : roomImage,
+  imagePreview: item.imageurl ? apiClient.assetUrl(item.imageurl) : roomPreviewImage,
   amenities: String(item.amenities || "").split(",").map((value) => value.trim()).filter(Boolean),
   description: item.description || "A comfortable room for your stay.",
   status: item.status

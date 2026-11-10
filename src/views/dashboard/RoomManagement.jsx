@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { roomController } from "../../controllers/roomController.js";
 import { catalogController } from "../../controllers/catalogController.js";
+import { apiClient } from "../../services/apiClient.js";
 import "./room-management.css";
 import { translateCatalog, useLanguage } from "../../i18n.js";
 import { useConfirmation } from "../useConfirmation.jsx";
@@ -23,11 +24,20 @@ export function RoomManagement({ onRefresh, user }) {
   const [editingItem, setEditingItem] = useState(null);
   const [formData, setFormData] = useState({});
   const [formErrors, setFormErrors] = useState({});
+  const [typeImageFile, setTypeImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState("");
   const { notification, showNotification, hideNotification } = useNotification();
 
   useEffect(() => {
     loadData();
   }, [activeTab]);
+
+  useEffect(() => {
+    if (!typeImageFile) return undefined;
+    const url = URL.createObjectURL(typeImageFile);
+    setImagePreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [typeImageFile]);
 
   async function loadData() {
     setLoading(true);
@@ -68,16 +78,25 @@ export function RoomManagement({ onRefresh, user }) {
         };
         if (editingItem) await roomController.update(editingItem.id, payload);
         else await roomController.create(payload);
-      } else if (editingItem) {
-        await roomController.updateType(editingItem.id, formData);
       } else {
-        await roomController.createType(formData);
+        let savedTypeId = editingItem?.id;
+        if (editingItem) {
+          await roomController.updateType(editingItem.id, formData);
+        } else {
+          const created = await roomController.createType(formData);
+          savedTypeId = created?.roomtypeid;
+        }
+        if (typeImageFile && savedTypeId) {
+          await roomController.uploadTypeImage(savedTypeId, typeImageFile);
+        }
       }
 
       setShowModal(false);
       setEditingItem(null);
       setFormData({});
       setFormErrors({});
+      setTypeImageFile(null);
+      setImagePreview("");
       await loadData();
       const itemLabel = activeTab === "rooms" ? (vi ? "phòng" : "room") : (vi ? "loại phòng" : "room type");
       showNotification(editingItem ? (vi ? `Đã cập nhật ${itemLabel}.` : `${itemLabel.charAt(0).toUpperCase() + itemLabel.slice(1)} updated successfully.`) : (vi ? `Đã tạo ${itemLabel}.` : `${itemLabel.charAt(0).toUpperCase() + itemLabel.slice(1)} created successfully.`), "success");
@@ -138,6 +157,8 @@ export function RoomManagement({ onRefresh, user }) {
 
   function openModal(item = null) {
     setEditingItem(item);
+    setTypeImageFile(null);
+    setImagePreview(item?.image ? apiClient.assetUrl(item.image) : "");
     setFormData(activeTab === "rooms"
       ? {
           roomNumber: item?.roomNumber || "",
@@ -224,10 +245,11 @@ export function RoomManagement({ onRefresh, user }) {
       ) : (
         <div className="room-management-table-wrap">
           <table className="data-table">
-            <thead><tr><th>{vi ? "Tên" : "Name"}</th><th>{vi ? "Giá" : "Price"}</th><th>{vi ? "Sức chứa" : "Capacity"}</th><th>{vi ? "Tiện nghi" : "Amenities"}</th><th>{vi ? "Thao tác" : "Actions"}</th></tr></thead>
+            <thead><tr><th>{vi ? "Ảnh" : "Image"}</th><th>{vi ? "Tên" : "Name"}</th><th>{vi ? "Giá" : "Price"}</th><th>{vi ? "Sức chứa" : "Capacity"}</th><th>{vi ? "Tiện nghi" : "Amenities"}</th><th>{vi ? "Thao tác" : "Actions"}</th></tr></thead>
             <tbody>
               {roomTypes.map((type) => (
                 <tr key={type.id}>
+                  <td>{type.image ? <img className="room-type-thumb" src={apiClient.assetUrl(type.image)} alt={type.name} /> : <span className="hint">—</span>}</td>
                   <td>{translateCatalog(type.name, language)}</td>
                   <td>{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(type.price || 0)}</td>
                   <td>{type.capacity} {vi ? "khách" : "guests"}</td>
@@ -279,6 +301,10 @@ export function RoomManagement({ onRefresh, user }) {
                   <label>{vi ? "Sức chứa" : "Capacity"}<input required type="number" min="1" value={formData.capacity || ""} onChange={(event) => updateForm("capacity", Number(event.target.value))} /></label>
                   <label>{vi ? "Tiện nghi" : "Amenities"}<input value={formData.amenities || ""} onChange={(event) => updateForm("amenities", event.target.value)} placeholder={vi ? "WiFi, TV, điều hòa..." : "WiFi, TV, AC, etc."} /></label>
                   <label>{vi ? "Mô tả" : "Description"}<textarea value={formData.description || ""} onChange={(event) => updateForm("description", event.target.value)} /></label>
+                  <label>{vi ? "Ảnh loại phòng" : "Room type image"}
+                    <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => setTypeImageFile(event.target.files?.[0] || null)} />
+                  </label>
+                  {imagePreview && <img className="room-type-preview" src={imagePreview} alt={vi ? "Xem trước ảnh loại phòng" : "Room type image preview"} />}
                 </>
               )}
               <div className="modal-actions">

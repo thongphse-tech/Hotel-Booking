@@ -2,11 +2,13 @@ import { useState, useEffect } from "react";
 import { catalogController } from "../../controllers/catalogController.js";
 import { useLanguage } from "../../i18n.js";
 import { useNotification } from "../useNotification.jsx";
+import { useConfirmation } from "../useConfirmation.jsx";
 import { Notification } from "../Notification.jsx";
 
 export function DiscountManagement({ onRefresh }) {
   const [language] = useLanguage();
   const vi = language === "VI";
+  const { confirm, dialog: confirmationDialog } = useConfirmation();
   const [discounts, setDiscounts] = useState([]);
   const [roomTypes, setRoomTypes] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -85,6 +87,30 @@ export function DiscountManagement({ onRefresh }) {
     }
   }
 
+  async function handleDelete(discount) {
+    const confirmed = await confirm({
+      title: vi ? "Xóa mã giảm giá?" : "Delete discount code?",
+      message: vi
+        ? `Xóa mã ${discount.code}? Hành động này không thể hoàn tác. Mã đang gắn với đặt phòng chưa hủy sẽ không thể xóa.`
+        : `Delete code ${discount.code}? This action cannot be undone. Codes linked to active bookings cannot be deleted.`,
+      cancelLabel: vi ? "Giữ lại" : "Keep it",
+      confirmLabel: vi ? "Xóa" : "Delete",
+      tone: "danger"
+    });
+    if (!confirmed) return;
+    setLoading(true);
+    try {
+      await catalogController.deleteDiscount(discount.id);
+      await loadDiscounts();
+      showNotification(vi ? "Đã xóa mã giảm giá." : "Discount code deleted successfully.", "success");
+      onRefresh?.();
+    } catch (error) {
+      showNotification(error.message, "error");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function openModal(item = null) {
     setEditingItem(item);
     setFormData(item
@@ -95,6 +121,7 @@ export function DiscountManagement({ onRefresh }) {
 
   return (
     <div className="management-section">
+      {confirmationDialog}
       <div className="section-header">
         <h2>{vi ? "Quản lý mã giảm giá" : "Manage Discount Codes"}</h2>
         <button className="primary-btn" onClick={() => openModal()}>+ {vi ? "Thêm mã giảm giá" : "Add Discount"}</button>
@@ -137,6 +164,7 @@ export function DiscountManagement({ onRefresh }) {
                 <button onClick={() => handleToggleStatus(discount.id, discount.isActive)}>
                   {discount.isActive ? (vi ? "Vô hiệu hóa" : "Deactivate") : (vi ? "Kích hoạt" : "Activate")}
                 </button>
+                <button className="booking-cancel-button" onClick={() => handleDelete(discount)}>{vi ? "Xóa" : "Delete"}</button>
               </td>
             </tr>
           ))}

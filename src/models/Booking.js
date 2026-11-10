@@ -11,8 +11,21 @@ export class Booking {
     customerName = "Guest",
     guestName = customerName,
     contactPhone = "",
-    specialRequests = ""
+    specialRequests = "",
   }) {
-    Object.assign(this, { id, roomId, roomName, checkIn, checkOut, guests, total, status, customerName, guestName, contactPhone, specialRequests });
+    Object.assign(this, {
+      id,
+      roomId,
+      roomName,
+      checkIn,
+      checkOut,
+      guests,
+      total,
+      status,
+      customerName,
+      guestName,
+      contactPhone,
+      specialRequests,
+    });
   }
 }

@@ -11,5 +11,10 @@ export const roomController = {
   updateStatus: (id, status) => apiClient.request(`/rooms/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
   createType: (data) => apiClient.request("/rooms/types", { method: "POST", body: JSON.stringify(data) }),
   updateType: (id, data) => apiClient.request(`/rooms/types/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  uploadTypeImage: (id, file) => {
+    const formData = new FormData();
+    formData.append("image", file);
+    return apiClient.upload(`/rooms/types/${id}/image`, formData);
+  },
   deleteType: (id) => apiClient.request(`/rooms/types/${id}`, { method: "DELETE" })
 };

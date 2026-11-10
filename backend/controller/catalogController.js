@@ -7,6 +7,7 @@ export const catalogController = {
   createDiscount: async (req, res) => res.status(201).json(await catalogService.createDiscount(req.body)),
   updateDiscount: async (req, res) => res.json(await catalogService.updateDiscount(req.params.id, req.body)),
   setDiscountActive: async (req, res) => res.json(await catalogService.setDiscountActive(req.params.id, req.body.isActive)),
+  deleteDiscount: async (req, res) => res.json(await catalogService.deleteDiscount(req.params.id)),
   listServices: async (req, res) => res.json(await catalogService.listServices(req.query)),
   createService: async (req, res) => res.status(201).json(await catalogService.createService(req.body)),
   updateService: async (req, res) => res.json(await catalogService.updateService(req.params.id, req.body)),

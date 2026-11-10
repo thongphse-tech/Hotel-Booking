@@ -2,6 +2,7 @@ import { Router } from "express";
 import { roomController } from "../controller/roomController.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { authenticate, authorize } from "../middleware/authMiddleware.js";
+import { uploadRoomTypeImage } from "../middleware/upload.js";
 
 const router = Router();
 const staff = ["admin", "staff"];
@@ -20,6 +21,7 @@ router.patch("/:id", authenticate, authorize(...admin), asyncHandler(roomControl
 router.delete("/:id", authenticate, authorize(...admin), asyncHandler(roomController.delete));
 router.post("/types", authenticate, authorize(...admin), asyncHandler(roomController.createType));
 router.patch("/types/:id", authenticate, authorize(...admin), asyncHandler(roomController.updateType));
+router.post("/types/:id/image", authenticate, authorize(...admin), uploadRoomTypeImage, asyncHandler(roomController.uploadTypeImage));
 router.delete("/types/:id", authenticate, authorize(...admin), asyncHandler(roomController.deleteType));
 
 export default router;

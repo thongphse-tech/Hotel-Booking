@@ -1,6 +1,7 @@
 import axios from "axios";
 
 const API_ROOT = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
+const API_ORIGIN = API_ROOT.replace(/\/api\/v\d+\/?$/, "");
 const TOKEN_KEY = "stayease_token";
 const USER_KEY = "stayease_user";
 
@@ -40,6 +41,26 @@ export const apiClient = {
   user: () => {
     try { return JSON.parse(localStorage.getItem(USER_KEY) || "null"); }
     catch { return null; }
+  },
+  assetUrl: (path) => {
+    if (!path) return path;
+    if (/^https?:\/\//i.test(path)) return path;
+    return `${API_ORIGIN}${path.startsWith("/") ? path : `/${path}`}`;
+  },
+  upload: async (path, formData) => {
+    const token = localStorage.getItem(TOKEN_KEY);
+    const response = await fetch(`${API_ROOT}${path}`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error = new Error(data.message || "Upload failed. Please try again.");
+      error.status = response.status;
+      throw error;
+    }
+    return data;
   },
   request: async (path, options = {}) => {
     const method = (options.method || "GET").toLowerCase();

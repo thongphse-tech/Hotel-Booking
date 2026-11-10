@@ -1,6 +1,12 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { roomRepo } from "../repo/roomRepo.js";
 import { validateRoom, validateRoomType } from "../model/roomModel.js";
 import { HttpError } from "./httpError.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const uploadsRoot = path.join(__dirname, "..", "uploads");
 
 export const roomService = {
   list: (filters = {}) => {
@@ -67,6 +73,19 @@ export const roomService = {
     if (!current) throw new HttpError(404, "Room type not found.");
     validateRoomType({ ...current, ...data });
     return roomRepo.updateType(id, data);
+  },
+  setTypeImage: async (id, imagePath) => {
+    if (!/^[1-9]\d*$/.test(String(id))) throw new HttpError(404, "Room type not found.");
+    const current = (await roomRepo.listTypes()).find((item) => item.roomtypeid === Number(id));
+    if (!current) throw new HttpError(404, "Room type not found.");
+    const result = await roomRepo.setTypeImage(id, imagePath);
+    if (!result) throw new HttpError(404, "Room type not found.");
+    const previous = String(current.imageurl || "");
+    if (previous.startsWith("/uploads/")) {
+      const previousFile = path.join(uploadsRoot, previous.slice("/uploads/".length));
+      if (previousFile.startsWith(uploadsRoot)) fs.promises.unlink(previousFile).catch(() => {});
+    }
+    return result;
   },
   deleteType: async (id) => {
     if (await roomRepo.typeHasRooms(id)) throw new HttpError(409, "Room type is assigned to rooms and cannot be removed.");

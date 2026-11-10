@@ -403,51 +403,6 @@ export function BookingManagement({ onRefresh, user }) {
                       </button>
                     )}
 
-                    {showRefundModal && (
-                      <div className="modal-overlay" onClick={() => setShowRefundModal(false)}>
-                        <div className="modal booking-payment-modal" role="dialog" aria-modal="true" aria-labelledby="refund-requests-title" onClick={(event) => event.stopPropagation()}>
-                          <h3 id="refund-requests-title">{vi ? "Yêu cầu hoàn tiền thủ công" : "Manual refund requests"}</h3>
-                          <p className="booking-customer-summary">
-                            {vi ? "Hoàn tiền được xử lý bên ngoài hệ thống. Staff chỉ đánh dấu hoàn tất sau khi tiền đã thực sự được trả cho khách." : "Refunds are processed outside this system. Staff should mark a request complete only after the money has actually been returned."}
-                          </p>
-                          <div className="booking-table-wrap">
-                            <table className="data-table">
-                              <thead><tr><th>{vi ? "Đặt phòng" : "Booking"}</th><th>{vi ? "Khách hàng" : "Customer"}</th><th>{vi ? "Phòng" : "Room"}</th><th>{vi ? "Số tiền hoàn" : "Refund amount"}</th><th>{vi ? "Ngày yêu cầu" : "Requested"}</th><th>{vi ? "Trạng thái" : "Status"}</th>{isAdmin && <th>{vi ? "Thao tác" : "Action"}</th>}</tr></thead>
-                              <tbody>
-                                {refundRequests.map((refund) => (
-                                  <tr key={refund.refundrequestid}>
-                                    <td>BK-{refund.bookingid}</td>
-                                    <td>{refund.customername}</td>
-                                    <td>{refund.roomnumber}</td>
-                                    <td>{money(refund.amount)}</td>
-                                    <td>{refund.createdat ? String(refund.createdat).slice(0, 16).replace("T", " ") : "—"}</td>
-                                    <td>{refund.status === "pending" ? (vi ? "Chờ xử lý thủ công" : "Pending manual review") : (vi ? "Đã hoàn tiền" : "Refunded")}</td>
-                                    {isAdmin && (
-                                      <td>
-                                        {refund.status === "pending" && (
-                                          <button
-                                            type="button"
-                                            className="stay-collect-payment"
-                                            disabled={processingRefundId === refund.refundrequestid}
-                                            onClick={() => handleCompleteRefund(refund)}
-                                          >
-                                            {processingRefundId === refund.refundrequestid ? (vi ? "Đang lưu…" : "Saving...") : (vi ? "Xác nhận đã hoàn" : "Confirm refunded")}
-                                          </button>
-                                        )}
-                                      </td>
-                                    )}
-                                  </tr>
-                                ))}
-                                {refundRequests.length === 0 && (
-                                  <tr><td colSpan={isStaff ? 7 : 6} className="booking-empty">{vi ? "Không có yêu cầu hoàn tiền." : "No refund requests found."}</td></tr>
-                                )}
-                              </tbody>
-                            </table>
-                          </div>
-                          <div className="modal-actions"><button type="button" onClick={() => setShowRefundModal(false)}>{vi ? "Đóng" : "Close"}</button></div>
-                        </div>
-                      </div>
-                    )}
                     {["Pending Payment", "Confirmed"].includes(booking.status) && (
                       <button type="button" className="booking-cancel-button" onClick={() => handleCancel(booking.id)}>{vi ? "Hủy" : "Cancel"}</button>
                     )}
@@ -604,6 +559,52 @@ export function BookingManagement({ onRefresh, user }) {
                 <div className="modal-actions"><button type="button" onClick={closeDetails}>{vi ? "Đóng" : "Close"}</button></div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {showRefundModal && (
+        <div className="modal-overlay" onClick={() => setShowRefundModal(false)}>
+          <div className="modal booking-payment-modal" role="dialog" aria-modal="true" aria-labelledby="refund-requests-title" onClick={(event) => event.stopPropagation()}>
+            <h3 id="refund-requests-title">{vi ? "Yêu cầu hoàn tiền thủ công" : "Manual refund requests"}</h3>
+            <p className="booking-customer-summary">
+              {vi ? "Hoàn tiền được xử lý bên ngoài hệ thống. Staff chỉ đánh dấu hoàn tất sau khi tiền đã thực sự được trả cho khách." : "Refunds are processed outside this system. Staff should mark a request complete only after the money has actually been returned."}
+            </p>
+            <div className="booking-table-wrap">
+              <table className="data-table">
+                <thead><tr><th>{vi ? "Đặt phòng" : "Booking"}</th><th>{vi ? "Khách hàng" : "Customer"}</th><th>{vi ? "Phòng" : "Room"}</th><th>{vi ? "Số tiền hoàn" : "Refund amount"}</th><th>{vi ? "Ngày yêu cầu" : "Requested"}</th><th>{vi ? "Trạng thái" : "Status"}</th>{isAdmin && <th>{vi ? "Thao tác" : "Action"}</th>}</tr></thead>
+                <tbody>
+                  {refundRequests.map((refund) => (
+                    <tr key={refund.refundrequestid}>
+                      <td>BK-{refund.bookingid}</td>
+                      <td>{refund.customername}</td>
+                      <td>{refund.roomnumber}</td>
+                      <td>{money(refund.amount)}</td>
+                      <td>{refund.createdat ? String(refund.createdat).slice(0, 16).replace("T", " ") : "—"}</td>
+                      <td>{refund.status === "pending" ? (vi ? "Chờ xử lý thủ công" : "Pending manual review") : (vi ? "Đã hoàn tiền" : "Refunded")}</td>
+                      {isAdmin && (
+                        <td>
+                          {refund.status === "pending" && (
+                            <button
+                              type="button"
+                              className="stay-collect-payment"
+                              disabled={processingRefundId === refund.refundrequestid}
+                              onClick={() => handleCompleteRefund(refund)}
+                            >
+                              {processingRefundId === refund.refundrequestid ? (vi ? "Đang lưu…" : "Saving...") : (vi ? "Xác nhận đã hoàn" : "Confirm refunded")}
+                            </button>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                  {refundRequests.length === 0 && (
+                    <tr><td colSpan={isAdmin ? 7 : 6} className="booking-empty">{vi ? "Không có yêu cầu hoàn tiền." : "No refund requests found."}</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="modal-actions"><button type="button" onClick={() => setShowRefundModal(false)}>{vi ? "Đóng" : "Close"}</button></div>
           </div>
         </div>
       )}

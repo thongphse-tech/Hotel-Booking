@@ -77,6 +77,7 @@ CREATE TABLE RoomType (
     Capacity INTEGER NOT NULL CHECK (Capacity > 0),
     Amenities TEXT,
     Description TEXT,
+    ImageURL VARCHAR(500),
     IsDeleted BOOLEAN DEFAULT false,
     CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

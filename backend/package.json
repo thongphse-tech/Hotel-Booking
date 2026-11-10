@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch server.js",
-    "start": "node server.js"
+    "test": "node test-suite.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
@@ -13,6 +13,7 @@
     "dotenv": "^16.4.7",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
+    "multer": "^2.5.0",
     "nodemailer": "^10.2.1",
     "pg": "^8.16.3"
   }

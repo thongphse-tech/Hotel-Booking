@@ -74,6 +74,13 @@ export const catalogService = {
     if (!result) throw new HttpError(404, "Discount code not found.");
     return result;
   },
+  deleteDiscount: async (id) => {
+    if (!/^[1-9]\d*$/.test(String(id))) throw new HttpError(404, "Discount code not found.");
+    const result = await catalogRepo.deleteDiscount(id);
+    if (!result) throw new HttpError(404, "Discount code not found.");
+    if (result.blocked) throw new HttpError(409, "This discount code is linked to existing bookings and cannot be deleted. Deactivate it instead.");
+    return { message: "Discount code deleted successfully." };
+  },
   listServices: (filters) => catalogRepo.listServices(filters),
   createService: async (data) => {
     validateService(data);

@@ -1,4 +1,5 @@
 import { roomService } from "../service/roomService.js";
+import { HttpError } from "../service/httpError.js";
 
 export const roomController = {
   list: async (req, res) => res.json(await roomService.list(req.query)),
@@ -12,5 +13,9 @@ export const roomController = {
   listTypes: async (req, res) => res.json(await roomService.listTypes()),
   createType: async (req, res) => res.status(201).json(await roomService.createType(req.body)),
   updateType: async (req, res) => res.json(await roomService.updateType(req.params.id, req.body)),
+  uploadTypeImage: async (req, res) => {
+    if (!req.file) throw new HttpError(400, "Choose a JPG, PNG, WebP, or GIF image up to 5MB.");
+    res.json(await roomService.setTypeImage(req.params.id, `/uploads/room-types/${req.file.filename}`));
+  },
   deleteType: async (req, res) => res.json(await roomService.deleteType(req.params.id))
 };

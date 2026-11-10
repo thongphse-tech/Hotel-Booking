@@ -6,6 +6,10 @@ import { authenticate, authorize } from "../middleware/authMiddleware.js";
 const router = Router();
 
 router.use(authenticate);
-router.post("/", authorize("customer"), asyncHandler(bookingController.simulatePayment));
+router.post(
+  "/",
+  authorize("customer"),
+  asyncHandler(bookingController.simulatePayment),
+);
 
 export default router;

@@ -14,6 +14,8 @@ Apply `migrations/009_add_password_reset_otp.sql` to enable password reset by em
 
 Apply `migrations/010_add_discount_room_type.sql` to associate discount codes with a room type. Existing codes remain available for all room types; admins choose a room type or all room types when creating a code. During booking, customers see currently valid codes for the selected room type, and the API checks the same room-type rule when applying and creating the booking.
 
+Apply `migrations/011_add_room_type_image.sql` to store an uploaded image per room type. Admins upload images through Room Management; files are stored under `backend/uploads/room-types` and served at `/uploads`.
+
 The database starts empty. Register a customer through the web UI. To grant that account administrator access, connect to `hotel_booking` with `psql` and run:
 
 ```sql
